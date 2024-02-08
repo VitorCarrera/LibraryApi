@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.Collections.ObjectModel;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace LibraryApi.Models
@@ -6,6 +7,10 @@ namespace LibraryApi.Models
     [Table("Genres")]
     public class Genre
     {
+        public Genre()
+        {
+            Books = new Collection<Book>();
+        }
         [Key]
         public int GenreId { get; set; }
         [Required]
