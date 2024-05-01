@@ -1,4 +1,5 @@
 using LibraryApi.Context;
+using LibraryApi.Filters;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 
@@ -6,7 +7,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+    options.Filters.Add(typeof(ApiExceptionFilter));
+    })
     .AddJsonOptions(options =>
     options.JsonSerializerOptions
     .ReferenceHandler = ReferenceHandler.IgnoreCycles);

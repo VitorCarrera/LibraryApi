@@ -12,10 +12,13 @@ namespace LibraryApi.Controllers
     {
 
         private readonly AppDbContext _context;
+        private readonly ILogger<GenresController> _logger;
 
-        public BooksController(AppDbContext context)
+
+        public BooksController(AppDbContext context, ILogger<GenresController> logger)
         {
             _context = context; 
+            _logger = logger;
         }
 
 
@@ -23,42 +26,30 @@ namespace LibraryApi.Controllers
         public ActionResult<IEnumerable<Book>> Get()
         {
 
-            try
-            {
-                var books = _context.Books.AsNoTracking().Take(10).ToList();
+            var books = _context.Books.AsNoTracking().Take(10).ToList();
 
-                if (books is null)
-                    return NotFound("Books not found...");
-
+            if (books is null) { 
+            _logger.LogWarning("Books not found...");
+            return NotFound("Books not found...");
+        }
                 return books;
             }
-            catch (Exception)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "There was a problem handling your request.");
-            }
-        }
+     
+        
 
         [HttpGet("{id:int}", Name = "GetBook")]
         public ActionResult<Book> Get(int id)
         {
+            var book = _context.Books.FirstOrDefault(b => b.BookId == id);
 
-            try
+            if (book is null)
             {
-                var book = _context.Books.FirstOrDefault(b => b.BookId == id);
-
-                if (book is null)
-                    return NotFound("Book not found...");
+                _logger.LogWarning("Book not found...");
+                return NotFound("Book not found...");
+            }
 
                 return Ok(book);
-            }
-            catch (Exception)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "There was a problem handling your request.");
-            }
-
-
+ 
         }
 
 
@@ -66,22 +57,16 @@ namespace LibraryApi.Controllers
         public ActionResult Post(Book book)
         {
 
-            try
+            if (book is null)
             {
-                if (book is null)
-                    return BadRequest();
+                _logger.LogWarning("Invalid Data");
+                return BadRequest("Invalid Data");
+            }
 
                 _context.Books.Add(book);
                 _context.SaveChanges();
 
                 return new CreatedAtRouteResult("GetBook", new { id = book.BookId }, book);
-
-            }
-            catch (Exception)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "There was a problem handling your request.");
-            }
         }
 
 
@@ -89,44 +74,36 @@ namespace LibraryApi.Controllers
         public ActionResult Put(int id, Book book)
         {
 
-            try
+            if (id != book.BookId)
             {
-                if (id != book.BookId)
-                    return BadRequest();
+                _logger.LogWarning("Invlaid Data");
+                return BadRequest("Invalid Data");
+            }
 
                 _context.Entry(book).State = EntityState.Modified;
                 _context.SaveChanges();
 
                 return Ok(book);
-            }
-            catch (Exception)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "There was a problem handling your request.");
-            }
+
         }
 
         [HttpDelete("{id:int}")]
         public ActionResult Delete(int id)
         {
 
-            try
-            {
-                var book = _context.Books.FirstOrDefault(b => b.BookId == id);
+            var book = _context.Books.FirstOrDefault(b => b.BookId == id);
 
-                if (book is null)
-                    return NotFound("Book not found...");
+            if (book is null)
+            {
+                _logger.LogWarning("Book not found...");
+                return NotFound("Book not found...");
+            }
 
                 _context.Books.Remove(book);
                 _context.SaveChanges();
 
                 return Ok(book);
-            }
-            catch (Exception)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "There was a problem handling your request.");
-            }
+
         }
 
     }

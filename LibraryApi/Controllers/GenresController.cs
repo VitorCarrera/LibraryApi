@@ -11,72 +11,59 @@ namespace LibraryApi.Controllers
     public class GenresController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly ILogger<GenresController> _logger;
 
-        public GenresController(AppDbContext context)
+        public GenresController(AppDbContext context, ILogger<GenresController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
 
         [HttpGet("books")]
         public ActionResult<IEnumerable<Genre>> GetAllBooks()
         {
+            var genres = _context.Genres.Include(b => b.Books).ToList();
 
-            try { 
-                var genres = _context.Genres.Include(b => b.Books).ToList();
-
-                if (genres is null)
-                 return NotFound("Genres and Books not found...");
-
-                return genres;
-
-            }
-            catch (Exception)
+            if (genres is null)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "There was a problem handling your request.");
+                _logger.LogWarning("Genres and Books not found...");
+                return NotFound("Genres and Books not found...");
             }
+
+            return genres;
+
         }
 
         [HttpGet]
         public ActionResult<IEnumerable<Genre>> Get()
         {
-    
-            try
-            {
-                var genres = _context.Genres.AsNoTracking().Take(10).ToList();
 
-                if (genres is null)
-                    return NotFound("Genres not found...");
+            var genres = _context.Genres.AsNoTracking().Take(10).ToList();
 
-                return genres;
-            }
-            catch (Exception)
+            if (genres is null)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "There was a problem handling your request.");
+                _logger.LogWarning("Genres not found...");
+                return NotFound("Genres not found...");
             }
+
+            return genres;
         }
 
-        [HttpGet("{id:int}", Name = "GetGenre")]   
+        [HttpGet("{id:int}", Name = "GetGenre")]
         public ActionResult<Genre> Get(int id)
         {
+            var genre = _context.Genres.FirstOrDefault(g => g.GenreId == id);
 
-            try
+            if (genre is null)
             {
-                var genre = _context.Genres.FirstOrDefault(g => g.GenreId == id);
 
-                if (genre is null)
-                    return NotFound("Genre not found...");
+                _logger.LogWarning($"Genre not found...");
+                return NotFound("Genre not found...");
 
-                return Ok(genre);
-            }
-            catch (Exception)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "There was a problem handling your request.");
             }
 
+            return Ok(genre);
 
         }
 
@@ -85,22 +72,17 @@ namespace LibraryApi.Controllers
         public ActionResult Post(Genre genre)
         {
 
-            try
+            if (genre is null)
             {
-                if (genre is null)
-                    return BadRequest();
-
-                _context.Genres.Add(genre);
-                _context.SaveChanges();
-
-                return new CreatedAtRouteResult("GetGenre", new { id = genre.GenreId }, genre);
-
+                _logger.LogWarning("Invalid Data...");
+                return BadRequest("Invalid Data...");
             }
-            catch (Exception)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "There was a problem handling your request.");
-            }
+
+            _context.Genres.Add(genre);
+            _context.SaveChanges();
+
+            return new CreatedAtRouteResult("GetGenre", new { id = genre.GenreId }, genre);
+
         }
 
 
@@ -108,44 +90,34 @@ namespace LibraryApi.Controllers
         public ActionResult Put(int id, Genre genre)
         {
 
-            try
-            {
-                if (id != genre.GenreId)
-                    return BadRequest();
 
+            if (id != genre.GenreId) {
+                _logger.LogWarning("Invalid Data");
+                return BadRequest("Invalid Data");
+            }
                 _context.Entry(genre).State = EntityState.Modified;
                 _context.SaveChanges();
 
                 return Ok(genre);
-            }
-            catch (Exception)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "There was a problem handling your request.");
-            }
+            
         }
 
         [HttpDelete("{id:int}")]
         public ActionResult Delete(int id)
         {
-
-            try
-            {
                 var genre = _context.Genres.FirstOrDefault(g => g.GenreId == id);
 
-                if (genre is null)
-                    return NotFound("Genre not found...");
+            if (genre is null)
+            {
+                _logger.LogWarning("Genres not found...");
+                return NotFound("Genre not found...");
+            }
 
                 _context.Genres.Remove(genre);
                 _context.SaveChanges();
 
                 return Ok(genre);
-            }
-            catch (Exception)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    "There was a problem handling your request.");
-            }
+     
         }
 
     }
