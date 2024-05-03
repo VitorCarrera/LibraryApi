@@ -1,5 +1,7 @@
 ﻿using LibraryApi.Context;
 using LibraryApi.Models;
+using LibraryApi.Repositories;
+using LibraryApi.Repositories.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,12 +12,13 @@ namespace LibraryApi.Controllers
     [ApiController]
     public class GenresController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly IUnitOfWork _uof;
         private readonly ILogger<GenresController> _logger;
 
-        public GenresController(AppDbContext context, ILogger<GenresController> logger)
+        public GenresController(IUnitOfWork uof,
+            ILogger<GenresController> logger)
         {
-            _context = context;
+            _uof = uof;
             _logger = logger;
         }
 
@@ -23,7 +26,7 @@ namespace LibraryApi.Controllers
         [HttpGet("books")]
         public ActionResult<IEnumerable<Genre>> GetAllBooks()
         {
-            var genres = _context.Genres.Include(b => b.Books).ToList();
+            var genres = _uof.GenreRepository.GetAllBooks();
 
             if (genres is null)
             {
@@ -31,7 +34,7 @@ namespace LibraryApi.Controllers
                 return NotFound("Genres and Books not found...");
             }
 
-            return genres;
+            return Ok(genres);
 
         }
 
@@ -39,21 +42,15 @@ namespace LibraryApi.Controllers
         public ActionResult<IEnumerable<Genre>> Get()
         {
 
-            var genres = _context.Genres.AsNoTracking().Take(10).ToList();
+            var genres = _uof.GenreRepository.GetAll();
 
-            if (genres is null)
-            {
-                _logger.LogWarning("Genres not found...");
-                return NotFound("Genres not found...");
-            }
-
-            return genres;
+            return Ok(genres);
         }
 
         [HttpGet("{id:int}", Name = "GetGenre")]
         public ActionResult<Genre> Get(int id)
         {
-            var genre = _context.Genres.FirstOrDefault(g => g.GenreId == id);
+            var genre = _uof.GenreRepository.Get(g => g.GenreId == id);
 
             if (genre is null)
             {
@@ -78,10 +75,10 @@ namespace LibraryApi.Controllers
                 return BadRequest("Invalid Data...");
             }
 
-            _context.Genres.Add(genre);
-            _context.SaveChanges();
+           var genreCreated = _uof.GenreRepository.Create(genre);
+            _uof.Commit(); //persistir as informações
 
-            return new CreatedAtRouteResult("GetGenre", new { id = genre.GenreId }, genre);
+            return new CreatedAtRouteResult("GetGenre", new { id = genreCreated.GenreId }, genreCreated);
 
         }
 
@@ -95,8 +92,9 @@ namespace LibraryApi.Controllers
                 _logger.LogWarning("Invalid Data");
                 return BadRequest("Invalid Data");
             }
-                _context.Entry(genre).State = EntityState.Modified;
-                _context.SaveChanges();
+
+            _uof.GenreRepository.Update(genre);
+            _uof.Commit();
 
                 return Ok(genre);
             
@@ -105,7 +103,7 @@ namespace LibraryApi.Controllers
         [HttpDelete("{id:int}")]
         public ActionResult Delete(int id)
         {
-                var genre = _context.Genres.FirstOrDefault(g => g.GenreId == id);
+            var genre = _uof.GenreRepository.Get(g => g.GenreId == id);
 
             if (genre is null)
             {
@@ -113,10 +111,10 @@ namespace LibraryApi.Controllers
                 return NotFound("Genre not found...");
             }
 
-                _context.Genres.Remove(genre);
-                _context.SaveChanges();
+            var genreDeleted = _uof.GenreRepository.Delete(genre);
+            _uof.Commit();
 
-                return Ok(genre);
+            return Ok(genreDeleted);
      
         }
 

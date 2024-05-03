@@ -1,5 +1,6 @@
 ﻿using LibraryApi.Context;
 using LibraryApi.Models;
+using LibraryApi.Repositories.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,22 +12,34 @@ namespace LibraryApi.Controllers
     public class BooksController : ControllerBase
     {
 
-        private readonly AppDbContext _context;
+        
+        private readonly IUnitOfWork _uof;
         private readonly ILogger<GenresController> _logger;
 
 
-        public BooksController(AppDbContext context, ILogger<GenresController> logger)
+        public BooksController(IUnitOfWork uof,
+             ILogger<GenresController> logger)
         {
-            _context = context; 
+            _uof = uof;
             _logger = logger;
         }
 
+        [HttpGet("books/{id}")]
+        public ActionResult<IEnumerable<Book>> GetBooksGenre(int id)
+        {
+            var books = _uof.BookRepository.GetBooksByGenre(id);
+
+            if (books is null)
+                return NotFound();
+
+            return Ok(books);
+        }
 
         [HttpGet]
         public ActionResult<IEnumerable<Book>> Get()
         {
 
-            var books = _context.Books.AsNoTracking().Take(10).ToList();
+            var books = _uof.BookRepository.GetAll().ToList();
 
             if (books is null) { 
             _logger.LogWarning("Books not found...");
@@ -40,7 +53,7 @@ namespace LibraryApi.Controllers
         [HttpGet("{id:int}", Name = "GetBook")]
         public ActionResult<Book> Get(int id)
         {
-            var book = _context.Books.FirstOrDefault(b => b.BookId == id);
+            var book = _uof.BookRepository.Get(b => b.BookId == id);
 
             if (book is null)
             {
@@ -63,10 +76,10 @@ namespace LibraryApi.Controllers
                 return BadRequest("Invalid Data");
             }
 
-                _context.Books.Add(book);
-                _context.SaveChanges();
+            var bookCreated = _uof.BookRepository.Create(book);
+            _uof.Commit();
 
-                return new CreatedAtRouteResult("GetBook", new { id = book.BookId }, book);
+                return new CreatedAtRouteResult("GetBook", new { id = bookCreated.BookId }, bookCreated);
         }
 
 
@@ -76,22 +89,21 @@ namespace LibraryApi.Controllers
 
             if (id != book.BookId)
             {
-                _logger.LogWarning("Invlaid Data");
+                _logger.LogWarning("Invalid Data");
                 return BadRequest("Invalid Data");
             }
 
-                _context.Entry(book).State = EntityState.Modified;
-                _context.SaveChanges();
+            var updated = _uof.BookRepository.Update(book);
+            _uof.Commit();
 
-                return Ok(book);
-
+                return Ok(updated);
         }
 
         [HttpDelete("{id:int}")]
         public ActionResult Delete(int id)
         {
 
-            var book = _context.Books.FirstOrDefault(b => b.BookId == id);
+            var book = _uof.BookRepository.Get(b => b.BookId == id);
 
             if (book is null)
             {
@@ -99,10 +111,10 @@ namespace LibraryApi.Controllers
                 return NotFound("Book not found...");
             }
 
-                _context.Books.Remove(book);
-                _context.SaveChanges();
+             var deleted = _uof.BookRepository.Delete(book);
+            _uof.Commit();
 
-                return Ok(book);
+              return Ok(deleted);
 
         }
 
