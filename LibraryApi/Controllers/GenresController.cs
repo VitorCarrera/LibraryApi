@@ -1,4 +1,6 @@
 ﻿using LibraryApi.Context;
+using LibraryApi.DTOs;
+using LibraryApi.DTOs.Mappings;
 using LibraryApi.Models;
 using LibraryApi.Repositories;
 using LibraryApi.Repositories.Interfaces;
@@ -24,7 +26,7 @@ namespace LibraryApi.Controllers
 
 
         [HttpGet("books")]
-        public ActionResult<IEnumerable<Genre>> GetAllBooks()
+        public ActionResult<IEnumerable<GenreDTO>> GetAllBooks()
         {
             var genres = _uof.GenreRepository.GetAllBooks();
 
@@ -39,16 +41,23 @@ namespace LibraryApi.Controllers
         }
 
         [HttpGet]
-        public ActionResult<IEnumerable<Genre>> Get()
+        public ActionResult<IEnumerable<GenreDTO>> Get()
         {
 
             var genres = _uof.GenreRepository.GetAll();
 
-            return Ok(genres);
+            if (genres is null)
+                return NotFound("Genres don't exist...");
+
+
+            var genresDTO = genres.ToGenreDTOList();
+
+            return Ok(genresDTO);
         }
 
+
         [HttpGet("{id:int}", Name = "GetGenre")]
-        public ActionResult<Genre> Get(int id)
+        public ActionResult<GenreDTO> Get(int id)
         {
             var genre = _uof.GenreRepository.Get(g => g.GenreId == id);
 
@@ -60,48 +69,59 @@ namespace LibraryApi.Controllers
 
             }
 
-            return Ok(genre);
+            var genreDTO = genre.ToGenreDTO();
+
+            return Ok(genreDTO);
 
         }
 
 
         [HttpPost]
-        public ActionResult Post(Genre genre)
+        public ActionResult<GenreDTO> Post(GenreDTO genreDTO)
         {
 
-            if (genre is null)
+            if (genreDTO is null)
             {
                 _logger.LogWarning("Invalid Data...");
                 return BadRequest("Invalid Data...");
             }
 
-           var genreCreated = _uof.GenreRepository.Create(genre);
+            var genre = genreDTO.ToGenre();
+
+            var genreCreated = _uof.GenreRepository.Create(genre);
             _uof.Commit(); //persistir as informações
 
-            return new CreatedAtRouteResult("GetGenre", new { id = genreCreated.GenreId }, genreCreated);
+
+            var newGenreDTO = genreCreated.ToGenreDTO();
+
+            return new CreatedAtRouteResult("GetGenre", new { id = newGenreDTO.GenreId }, newGenreDTO);
 
         }
 
 
         [HttpPut("{id:int}")]
-        public ActionResult Put(int id, Genre genre)
+        public ActionResult<GenreDTO> Put(int id, GenreDTO genreDTO)
         {
 
 
-            if (id != genre.GenreId) {
+            if (id != genreDTO.GenreId) {
                 _logger.LogWarning("Invalid Data");
                 return BadRequest("Invalid Data");
             }
 
-            _uof.GenreRepository.Update(genre);
+            var genre = genreDTO.ToGenre();
+
+            var genreUpdated = _uof.GenreRepository.Update(genre);
             _uof.Commit();
 
-                return Ok(genre);
+            var newGenreDTO = genreUpdated.ToGenreDTO();
+
+            return Ok(newGenreDTO);
             
         }
 
         [HttpDelete("{id:int}")]
-        public ActionResult Delete(int id)
+        public ActionResult<GenreDTO> Delete(int id)
         {
             var genre = _uof.GenreRepository.Get(g => g.GenreId == id);
 
@@ -114,7 +134,9 @@ namespace LibraryApi.Controllers
             var genreDeleted = _uof.GenreRepository.Delete(genre);
             _uof.Commit();
 
-            return Ok(genreDeleted);
+            var genreDeletedDTO = genreDeleted.ToGenreDTO();
+
+            return Ok(genreDeletedDTO);
      
         }
 
