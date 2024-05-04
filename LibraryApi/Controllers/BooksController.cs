@@ -1,7 +1,10 @@
-﻿using LibraryApi.Context;
+﻿using AutoMapper;
+using LibraryApi.Context;
+using LibraryApi.DTOs;
 using LibraryApi.Models;
 using LibraryApi.Repositories.Interfaces;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,28 +18,34 @@ namespace LibraryApi.Controllers
         
         private readonly IUnitOfWork _uof;
         private readonly ILogger<GenresController> _logger;
+        private readonly IMapper _mapper;
 
 
         public BooksController(IUnitOfWork uof,
-             ILogger<GenresController> logger)
+             ILogger<GenresController> logger,
+             IMapper mapper)
         {
             _uof = uof;
             _logger = logger;
+            _mapper = mapper;
         }
 
         [HttpGet("books/{id}")]
-        public ActionResult<IEnumerable<Book>> GetBooksGenre(int id)
+        public ActionResult<IEnumerable<BookDTO>> GetBooksGenre(int id)
         {
             var books = _uof.BookRepository.GetBooksByGenre(id);
 
             if (books is null)
                 return NotFound();
 
-            return Ok(books);
+            //var destino = _mapper.Map<Destino>(origem);
+            var booksDTO = _mapper.Map<IEnumerable<BookDTO>>(books);
+
+            return Ok(booksDTO);
         }
 
         [HttpGet]
-        public ActionResult<IEnumerable<Book>> Get()
+        public ActionResult<IEnumerable<BookDTO>> Get()
         {
 
             var books = _uof.BookRepository.GetAll().ToList();
@@ -45,13 +54,15 @@ namespace LibraryApi.Controllers
             _logger.LogWarning("Books not found...");
             return NotFound("Books not found...");
         }
-                return books;
+
+            var booksDTO = _mapper.Map<IEnumerable<BookDTO>>(books);
+                return Ok(booksDTO);
             }
      
         
 
         [HttpGet("{id:int}", Name = "GetBook")]
-        public ActionResult<Book> Get(int id)
+        public ActionResult<BookDTO> Get(int id)
         {
             var book = _uof.BookRepository.Get(b => b.BookId == id);
 
@@ -61,46 +72,84 @@ namespace LibraryApi.Controllers
                 return NotFound("Book not found...");
             }
 
+            var bookDTO = _mapper.Map<BookDTO>(book);
                 return Ok(book);
  
         }
 
 
         [HttpPost]
-        public ActionResult Post(Book book)
+        public ActionResult<BookDTO> Post(BookDTO bookDTO)
         {
 
-            if (book is null)
+            if (bookDTO is null)
             {
                 _logger.LogWarning("Invalid Data");
                 return BadRequest("Invalid Data");
             }
+
+            var book = _mapper.Map<Book>(bookDTO);
 
             var bookCreated = _uof.BookRepository.Create(book);
             _uof.Commit();
 
-                return new CreatedAtRouteResult("GetBook", new { id = bookCreated.BookId }, bookCreated);
+            var newBookDTO = _mapper.Map<BookDTO>(bookCreated);
+
+                return new CreatedAtRouteResult("GetBook", new { id = newBookDTO.BookId }, newBookDTO);
+        }
+
+        
+        [HttpPatch("{id}/UpdatePartial")]
+        public ActionResult<BookDTOUpdateResponse> Patch(int id,
+            JsonPatchDocument<BookDTOUpdateRequest> patchBookDTO)
+        {
+            if (patchBookDTO is null || id <= 0)
+                return BadRequest();
+
+            var book = _uof.BookRepository.Get(c => c.BookId == id);
+
+            if (book is null)
+                return NotFound();
+
+            var bookUpdateRequest = _mapper.Map<BookDTOUpdateRequest>(book);
+
+            patchBookDTO.ApplyTo(bookUpdateRequest, ModelState);
+
+            if (!ModelState.IsValid || TryValidateModel(bookUpdateRequest))
+                return BadRequest();
+
+            _mapper.Map(bookUpdateRequest, book);
+
+            _uof.BookRepository.Update(book);
+            _uof.Commit();
+
+            return Ok(_mapper.Map<BookDTOUpdateResponse>(book));
         }
 
 
         [HttpPut("{id:int}")]
-        public ActionResult Put(int id, Book book)
+        public ActionResult<BookDTO> Put(int id, Book bookDTO)
         {
 
-            if (id != book.BookId)
+            if (id != bookDTO.BookId)
             {
                 _logger.LogWarning("Invalid Data");
                 return BadRequest("Invalid Data");
             }
 
+            var book = _mapper.Map<Book>(bookDTO);
+
             var updated = _uof.BookRepository.Update(book);
             _uof.Commit();
 
-                return Ok(updated);
+            var newBookDTO = _mapper.Map<BookDTO>(updated);
+
+
+            return Ok(newBookDTO);
         }
 
         [HttpDelete("{id:int}")]
-        public ActionResult Delete(int id)
+        public ActionResult<BookDTO> Delete(int id)
         {
 
             var book = _uof.BookRepository.Get(b => b.BookId == id);
@@ -114,7 +163,9 @@ namespace LibraryApi.Controllers
              var deleted = _uof.BookRepository.Delete(book);
             _uof.Commit();
 
-              return Ok(deleted);
+            var bookDTO = _mapper.Map<BookDTO>(deleted);
+
+            return Ok(bookDTO);
 
         }
 

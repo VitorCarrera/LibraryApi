@@ -1,4 +1,5 @@
 using LibraryApi.Context;
+using LibraryApi.DTOs.Mappings;
 using LibraryApi.Filters;
 using LibraryApi.Repositories;
 using LibraryApi.Repositories.Interfaces;
@@ -11,11 +12,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers(options =>
     {
-    options.Filters.Add(typeof(ApiExceptionFilter));
+        options.Filters.Add(typeof(ApiExceptionFilter));
     })
     .AddJsonOptions(options =>
-    options.JsonSerializerOptions
-    .ReferenceHandler = ReferenceHandler.IgnoreCycles);
+        options.JsonSerializerOptions
+        .ReferenceHandler = ReferenceHandler.IgnoreCycles).AddNewtonsoftJson();
 
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -34,6 +35,8 @@ builder.Services.AddScoped<IGenreRepository, GenreRepository>();
 builder.Services.AddScoped<IBookRepository, BookRepository>();
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+builder.Services.AddAutoMapper(typeof(BookDTOMappingProfile));
 
 
 var app = builder.Build();
