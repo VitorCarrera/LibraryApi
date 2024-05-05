@@ -2,11 +2,14 @@
 using LibraryApi.DTOs;
 using LibraryApi.DTOs.Mappings;
 using LibraryApi.Models;
+using LibraryApi.Pagination;
 using LibraryApi.Repositories;
 using LibraryApi.Repositories.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
+using static System.Reflection.Metadata.BlobBuilder;
 
 namespace LibraryApi.Controllers
 {
@@ -24,6 +27,23 @@ namespace LibraryApi.Controllers
             _logger = logger;
         }
 
+        [HttpGet("pagination")]
+        public ActionResult<IEnumerable<GenreDTO>> Get([FromQuery] GenresParameters genresParameters)
+        {
+            var genres = _uof.GenreRepository.GetGenres(genresParameters);
+
+            return GetGenres(genres);
+        }
+
+        
+
+        [HttpGet("filter/nome/pagination")]
+        public ActionResult<IEnumerable<GenreDTO>> GetGenresFiltered([FromQuery] GenresFilterName genresFilter)
+        {
+            var genresFiltered = _uof.GenreRepository.GetGenresFilterName(genresFilter);
+
+            return GetGenres(genresFiltered); 
+        }
 
         [HttpGet("books")]
         public ActionResult<IEnumerable<GenreDTO>> GetAllBooks()
@@ -139,6 +159,26 @@ namespace LibraryApi.Controllers
             return Ok(genreDeletedDTO);
      
         }
+
+        private ActionResult<IEnumerable<GenreDTO>> GetGenres(PagedList<Genre> genres)
+        {
+            var metadata = new
+            {
+                genres.TotalCount,
+                genres.PageSize,
+                genres.CurrentPage,
+                genres.TotalPages,
+                genres.HasNext,
+                genres.HasPrevious
+            };
+
+            Response.Headers.Append("X-Pagination", JsonConvert.SerializeObject(metadata));
+
+            var genresDTO = genres.ToGenreDTOList();
+
+            return Ok(genresDTO);
+        }
+
 
     }
 }

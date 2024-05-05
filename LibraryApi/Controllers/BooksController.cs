@@ -2,11 +2,13 @@
 using LibraryApi.Context;
 using LibraryApi.DTOs;
 using LibraryApi.Models;
+using LibraryApi.Pagination;
 using LibraryApi.Repositories.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace LibraryApi.Controllers
 {
@@ -28,6 +30,24 @@ namespace LibraryApi.Controllers
             _uof = uof;
             _logger = logger;
             _mapper = mapper;
+        }
+
+        [HttpGet("pagination")]
+        public ActionResult<IEnumerable<BookDTO>> Get([FromQuery] BooksFilterPrice booksParameters)
+        {
+            var books = _uof.BookRepository.GetBooks(booksParameters);
+            return GetBooks(books);
+        }
+
+        
+
+        [HttpGet("filter/prico/pagination")]
+        public ActionResult<IEnumerable<BookDTO>> GetBooksFilterPrice([FromQuery] BooksFilterPrice booksFilterParameters)
+        {
+            var books = _uof.BookRepository.GetBooksFilterPrice(booksFilterParameters);
+
+            return GetBooks(books);
+
         }
 
         [HttpGet("books/{id}")]
@@ -167,6 +187,25 @@ namespace LibraryApi.Controllers
 
             return Ok(bookDTO);
 
+        }
+
+        private ActionResult<IEnumerable<BookDTO>> GetBooks(PagedList<Book> books)
+        {
+            var metadata = new
+            {
+                books.TotalCount,
+                books.PageSize,
+                books.CurrentPage,
+                books.TotalPages,
+                books.HasNext,
+                books.HasPrevious
+            };
+
+            Response.Headers.Append("X-Pagination", JsonConvert.SerializeObject(metadata));
+
+            var booksDTO = _mapper.Map<IEnumerable<BookDTO>>(books);
+
+            return Ok(booksDTO);
         }
 
     }
