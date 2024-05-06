@@ -1,12 +1,13 @@
 ﻿using LibraryApi.Models;
 using LibraryApi.Pagination;
+using X.PagedList;
 
 namespace LibraryApi.Repositories.Interfaces
 {
     public interface IBookRepository : IRepository<Book>
     {
-        PagedList<Book> GetBooks(BooksFilterPrice booksParameters);
-        PagedList<Book> GetBooksFilterPrice(BooksFilterPrice booksFilterParameters);
-        IEnumerable<Book> GetBooksByGenre(int id);
+        Task<IPagedList<Book>> GetBooksAsync(BooksFilterPrice booksParameters);
+        Task<IPagedList<Book>> GetBooksFilterPriceAsync(BooksFilterPrice booksFilterParameters);
+        Task<IEnumerable<Book>> GetBooksByGenreAsync(int id);
     }
 }

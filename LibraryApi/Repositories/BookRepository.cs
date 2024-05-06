@@ -4,6 +4,7 @@ using LibraryApi.Pagination;
 using LibraryApi.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
+using X.PagedList;
 
 namespace LibraryApi.Repositories
 {
@@ -15,29 +16,33 @@ namespace LibraryApi.Repositories
         {
         }
 
-        public PagedList<Book> GetBooks(BooksFilterPrice booksParameters)
+        public async Task<IPagedList<Book>> GetBooksAsync(BooksFilterPrice booksParameters)
         {
-            var books =  GetAll()
-                .OrderBy(b => b.BookId)
+            var books = await GetAllAsync();
+
+            var booksOrder = books.OrderBy(b => b.BookId)
                 .AsQueryable();
 
-            var booksOrdered = PagedList<Book>.ToPagedList(books,
-                 booksParameters.PageNumber,
+            var booksOrdered = await booksOrder.ToPagedListAsync(booksParameters.PageNumber,
                  booksParameters.PageSize);
 
             return booksOrdered;
         }
 
-        public IEnumerable<Book> GetBooksByGenre(int id)
+        public async Task<IEnumerable<Book>> GetBooksByGenreAsync(int id)
         {
-            var books = GetAll().Where(b => b.GenreId == id).ToList();
+            var books = await GetAllAsync();
+            
+            var result = books.Where(b => b.GenreId == id).ToList();
 
-            return books;
+            return result;
         }
 
-        public PagedList<Book> GetBooksFilterPrice(BooksFilterPrice booksFilterParameters)
+        public async Task<IPagedList<Book>> GetBooksFilterPriceAsync(BooksFilterPrice booksFilterParameters)
         {
-            var books = GetAll().AsQueryable();
+            var booksBD = await GetAllAsync();
+
+            var books = booksBD.AsQueryable();
 
             if (booksFilterParameters.Price.HasValue && !string.IsNullOrEmpty(booksFilterParameters.PriceCriteria))
             {
@@ -54,8 +59,7 @@ namespace LibraryApi.Repositories
                 }
             }
 
-            var booksFiltered = PagedList<Book>.ToPagedList(books, 
-                                                    booksFilterParameters.PageNumber,
+            var booksFiltered = await books.ToPagedListAsync(booksFilterParameters.PageNumber,
                                                     booksFilterParameters.PageSize);
 
             return booksFiltered;

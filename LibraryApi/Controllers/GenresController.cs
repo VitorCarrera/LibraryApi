@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using X.PagedList;
 using static System.Reflection.Metadata.BlobBuilder;
 
 namespace LibraryApi.Controllers
@@ -28,9 +29,9 @@ namespace LibraryApi.Controllers
         }
 
         [HttpGet("pagination")]
-        public ActionResult<IEnumerable<GenreDTO>> Get([FromQuery] GenresParameters genresParameters)
+        public async Task<ActionResult<IEnumerable<GenreDTO>>> GetAsync([FromQuery] GenresParameters genresParameters)
         {
-            var genres = _uof.GenreRepository.GetGenres(genresParameters);
+            var genres = await _uof.GenreRepository.GetGenresAsync(genresParameters);
 
             return GetGenres(genres);
         }
@@ -38,17 +39,17 @@ namespace LibraryApi.Controllers
         
 
         [HttpGet("filter/nome/pagination")]
-        public ActionResult<IEnumerable<GenreDTO>> GetGenresFiltered([FromQuery] GenresFilterName genresFilter)
+        public async Task<ActionResult<IEnumerable<GenreDTO>>> GetGenresFilteredAsync([FromQuery] GenresFilterName genresFilter)
         {
-            var genresFiltered = _uof.GenreRepository.GetGenresFilterName(genresFilter);
+            var genresFiltered = await _uof.GenreRepository.GetGenresFilterNameAsync(genresFilter);
 
             return GetGenres(genresFiltered); 
         }
 
         [HttpGet("books")]
-        public ActionResult<IEnumerable<GenreDTO>> GetAllBooks()
+        public async Task<ActionResult<IEnumerable<GenreDTO>>> GetAllBooksAsync()
         {
-            var genres = _uof.GenreRepository.GetAllBooks();
+            var genres = await _uof.GenreRepository.GetAllBooksAsync();
 
             if (genres is null)
             {
@@ -61,10 +62,10 @@ namespace LibraryApi.Controllers
         }
 
         [HttpGet]
-        public ActionResult<IEnumerable<GenreDTO>> Get()
+        public async Task<ActionResult<IEnumerable<GenreDTO>>> GetAsync()
         {
 
-            var genres = _uof.GenreRepository.GetAll();
+            var genres = await _uof.GenreRepository.GetAllAsync();
 
             if (genres is null)
                 return NotFound("Genres don't exist...");
@@ -77,9 +78,9 @@ namespace LibraryApi.Controllers
 
 
         [HttpGet("{id:int}", Name = "GetGenre")]
-        public ActionResult<GenreDTO> Get(int id)
+        public async Task<ActionResult<GenreDTO>> GetAsync(int id)
         {
-            var genre = _uof.GenreRepository.Get(g => g.GenreId == id);
+            var genre = await _uof.GenreRepository.GetAsync(g => g.GenreId == id);
 
             if (genre is null)
             {
@@ -97,7 +98,7 @@ namespace LibraryApi.Controllers
 
 
         [HttpPost]
-        public ActionResult<GenreDTO> Post(GenreDTO genreDTO)
+        public async Task<ActionResult<GenreDTO>> PostAsync(GenreDTO genreDTO)
         {
 
             if (genreDTO is null)
@@ -109,7 +110,7 @@ namespace LibraryApi.Controllers
             var genre = genreDTO.ToGenre();
 
             var genreCreated = _uof.GenreRepository.Create(genre);
-            _uof.Commit(); //persistir as informações
+            await _uof.CommitAsync(); //persistir as informações
 
 
             var newGenreDTO = genreCreated.ToGenreDTO();
@@ -120,7 +121,7 @@ namespace LibraryApi.Controllers
 
 
         [HttpPut("{id:int}")]
-        public ActionResult<GenreDTO> Put(int id, GenreDTO genreDTO)
+        public async Task<ActionResult<GenreDTO>> PutAsync(int id, GenreDTO genreDTO)
         {
 
 
@@ -132,7 +133,7 @@ namespace LibraryApi.Controllers
             var genre = genreDTO.ToGenre();
 
             var genreUpdated = _uof.GenreRepository.Update(genre);
-            _uof.Commit();
+            await _uof.CommitAsync();
 
             var newGenreDTO = genreUpdated.ToGenreDTO();
 
@@ -141,9 +142,9 @@ namespace LibraryApi.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        public ActionResult<GenreDTO> Delete(int id)
+        public async Task<ActionResult<GenreDTO>> DeleteAsync(int id)
         {
-            var genre = _uof.GenreRepository.Get(g => g.GenreId == id);
+            var genre = await _uof.GenreRepository.GetAsync(g => g.GenreId == id);
 
             if (genre is null)
             {
@@ -152,7 +153,7 @@ namespace LibraryApi.Controllers
             }
 
             var genreDeleted = _uof.GenreRepository.Delete(genre);
-            _uof.Commit();
+            await _uof.CommitAsync();
 
             var genreDeletedDTO = genreDeleted.ToGenreDTO();
 
@@ -160,16 +161,16 @@ namespace LibraryApi.Controllers
      
         }
 
-        private ActionResult<IEnumerable<GenreDTO>> GetGenres(PagedList<Genre> genres)
+        private ActionResult<IEnumerable<GenreDTO>> GetGenres(IPagedList<Genre> genres)
         {
             var metadata = new
             {
-                genres.TotalCount,
+                genres.Count,
                 genres.PageSize,
-                genres.CurrentPage,
-                genres.TotalPages,
-                genres.HasNext,
-                genres.HasPrevious
+                genres.PageCount,
+                genres.TotalItemCount,
+                genres.HasNextPage,
+                genres.HasPreviousPage
             };
 
             Response.Headers.Append("X-Pagination", JsonConvert.SerializeObject(metadata));

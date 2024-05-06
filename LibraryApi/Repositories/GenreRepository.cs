@@ -3,6 +3,7 @@ using LibraryApi.Models;
 using LibraryApi.Pagination;
 using LibraryApi.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using X.PagedList;
 
 namespace LibraryApi.Repositories
 {
@@ -13,35 +14,36 @@ namespace LibraryApi.Repositories
         public GenreRepository(AppDbContext context) : base(context){
         }
 
-        public IEnumerable<Genre> GetAllBooks()
+        public async Task<IEnumerable<Genre>> GetAllBooksAsync()
         {
-            var genres = _context.Genres.Include(g => g.Books).ToList();    
+            var genres = await _context.Genres.Include(g => g.Books).ToListAsync();    
 
             return genres;
         }
 
-        public PagedList<Genre> GetGenres(GenresParameters genresParameters)
+        public async Task<IPagedList<Genre>> GetGenresAsync(GenresParameters genresParameters)
         {
-            var genres = GetAll().OrderBy(g => g.GenreId).AsQueryable();
+            var genres = await GetAllAsync();
+                
+            var genresOrder = genres.OrderBy(g => g.GenreId).AsQueryable();
 
-            var genresOrdered = PagedList<Genre>.ToPagedList(genres,
-                genresParameters.PageNumber,
+            var result = await genresOrder.ToPagedListAsync(genresParameters.PageNumber,
                 genresParameters.PageSize);
 
-            return genresOrdered;
+            return result;
         }
 
-        public PagedList<Genre> GetGenresFilterName(GenresFilterName genresParameters)
+        public async Task<IPagedList<Genre>> GetGenresFilterNameAsync(GenresFilterName genresParameters)
         {
 
-            var genres = GetAll().AsQueryable();
+            var genres = await GetAllAsync();
+            
 
             if (!string.IsNullOrEmpty(genresParameters.Name))
                 genres = genres.Where(g => g.Name.Contains(genresParameters.Name));
 
 
-            var genresFiltered = PagedList<Genre>.ToPagedList(genres,
-                genresParameters.PageNumber,
+            var genresFiltered = await genres.ToPagedListAsync(genresParameters.PageNumber,
                 genresParameters.PageSize);
 
             return genresFiltered;

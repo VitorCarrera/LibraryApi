@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using X.PagedList;
 
 namespace LibraryApi.Controllers
 {
@@ -33,27 +34,27 @@ namespace LibraryApi.Controllers
         }
 
         [HttpGet("pagination")]
-        public ActionResult<IEnumerable<BookDTO>> Get([FromQuery] BooksFilterPrice booksParameters)
+        public async Task<ActionResult<IEnumerable<BookDTO>>> GetAsync([FromQuery] BooksFilterPrice booksParameters)
         {
-            var books = _uof.BookRepository.GetBooks(booksParameters);
+            var books = await _uof.BookRepository.GetBooksAsync(booksParameters);
             return GetBooks(books);
         }
 
         
 
         [HttpGet("filter/prico/pagination")]
-        public ActionResult<IEnumerable<BookDTO>> GetBooksFilterPrice([FromQuery] BooksFilterPrice booksFilterParameters)
+        public async Task<ActionResult<IEnumerable<BookDTO>>> GetBooksFilterPriceAsync([FromQuery] BooksFilterPrice booksFilterParameters)
         {
-            var books = _uof.BookRepository.GetBooksFilterPrice(booksFilterParameters);
+            var books = await _uof.BookRepository.GetBooksFilterPriceAsync(booksFilterParameters);
 
             return GetBooks(books);
 
         }
 
         [HttpGet("books/{id}")]
-        public ActionResult<IEnumerable<BookDTO>> GetBooksGenre(int id)
+        public async Task<ActionResult<IEnumerable<BookDTO>>> GetBooksGenreAsync(int id)
         {
-            var books = _uof.BookRepository.GetBooksByGenre(id);
+            var books = await _uof.BookRepository.GetBooksByGenreAsync(id);
 
             if (books is null)
                 return NotFound();
@@ -65,10 +66,12 @@ namespace LibraryApi.Controllers
         }
 
         [HttpGet]
-        public ActionResult<IEnumerable<BookDTO>> Get()
+        public async Task<ActionResult<IEnumerable<BookDTO>>> GetAsync()
         {
 
-            var books = _uof.BookRepository.GetAll().ToList();
+            var booksRep = await _uof.BookRepository.GetAllAsync();
+
+            var books = booksRep.ToList();
 
             if (books is null) { 
             _logger.LogWarning("Books not found...");
@@ -82,9 +85,9 @@ namespace LibraryApi.Controllers
         
 
         [HttpGet("{id:int}", Name = "GetBook")]
-        public ActionResult<BookDTO> Get(int id)
+        public async Task<ActionResult<BookDTO>> GetAsync(int id)
         {
-            var book = _uof.BookRepository.Get(b => b.BookId == id);
+            var book = await _uof.BookRepository.GetAsync(b => b.BookId == id);
 
             if (book is null)
             {
@@ -99,7 +102,7 @@ namespace LibraryApi.Controllers
 
 
         [HttpPost]
-        public ActionResult<BookDTO> Post(BookDTO bookDTO)
+        public async Task<ActionResult<BookDTO>> PostAsync(BookDTO bookDTO)
         {
 
             if (bookDTO is null)
@@ -111,7 +114,7 @@ namespace LibraryApi.Controllers
             var book = _mapper.Map<Book>(bookDTO);
 
             var bookCreated = _uof.BookRepository.Create(book);
-            _uof.Commit();
+            await _uof.CommitAsync();
 
             var newBookDTO = _mapper.Map<BookDTO>(bookCreated);
 
@@ -120,13 +123,13 @@ namespace LibraryApi.Controllers
 
         
         [HttpPatch("{id}/UpdatePartial")]
-        public ActionResult<BookDTOUpdateResponse> Patch(int id,
+        public async Task<ActionResult<BookDTOUpdateResponse>> PatchAsync(int id,
             JsonPatchDocument<BookDTOUpdateRequest> patchBookDTO)
         {
             if (patchBookDTO is null || id <= 0)
                 return BadRequest();
 
-            var book = _uof.BookRepository.Get(c => c.BookId == id);
+            var book = await _uof.BookRepository.GetAsync(c => c.BookId == id);
 
             if (book is null)
                 return NotFound();
@@ -141,14 +144,14 @@ namespace LibraryApi.Controllers
             _mapper.Map(bookUpdateRequest, book);
 
             _uof.BookRepository.Update(book);
-            _uof.Commit();
+            await _uof.CommitAsync();
 
             return Ok(_mapper.Map<BookDTOUpdateResponse>(book));
         }
 
 
         [HttpPut("{id:int}")]
-        public ActionResult<BookDTO> Put(int id, Book bookDTO)
+        public async Task<ActionResult<BookDTO>> PutAsync(int id, Book bookDTO)
         {
 
             if (id != bookDTO.BookId)
@@ -160,7 +163,7 @@ namespace LibraryApi.Controllers
             var book = _mapper.Map<Book>(bookDTO);
 
             var updated = _uof.BookRepository.Update(book);
-            _uof.Commit();
+            await _uof.CommitAsync();
 
             var newBookDTO = _mapper.Map<BookDTO>(updated);
 
@@ -169,10 +172,10 @@ namespace LibraryApi.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        public ActionResult<BookDTO> Delete(int id)
+        public async Task<ActionResult<BookDTO>> DeleteAsync(int id)
         {
 
-            var book = _uof.BookRepository.Get(b => b.BookId == id);
+            var book = await _uof.BookRepository.GetAsync(b => b.BookId == id);
 
             if (book is null)
             {
@@ -181,7 +184,7 @@ namespace LibraryApi.Controllers
             }
 
              var deleted = _uof.BookRepository.Delete(book);
-            _uof.Commit();
+            await _uof.CommitAsync();
 
             var bookDTO = _mapper.Map<BookDTO>(deleted);
 
@@ -189,16 +192,16 @@ namespace LibraryApi.Controllers
 
         }
 
-        private ActionResult<IEnumerable<BookDTO>> GetBooks(PagedList<Book> books)
+        private ActionResult<IEnumerable<BookDTO>> GetBooks(IPagedList<Book> books)
         {
             var metadata = new
             {
-                books.TotalCount,
+                books.Count,
                 books.PageSize,
-                books.CurrentPage,
-                books.TotalPages,
-                books.HasNext,
-                books.HasPrevious
+                books.PageCount,
+                books.TotalItemCount,
+                books.HasNextPage,
+                books.HasPreviousPage
             };
 
             Response.Headers.Append("X-Pagination", JsonConvert.SerializeObject(metadata));
